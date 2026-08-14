@@ -73,15 +73,15 @@ const handleSocketConnection = (io) => {
 
     // Video Playback Controls (Play, Pause, Seek, Sync)
     socket.on('video-play', ({ roomId, currentTime }) => {
-      socket.to(roomId).emit('video-play', { currentTime, senderId: socket.id });
+      io.to(roomId).emit('video-play', { currentTime, senderId: socket.id });
     });
 
     socket.on('video-pause', ({ roomId, currentTime }) => {
-      socket.to(roomId).emit('video-pause', { currentTime, senderId: socket.id });
+      io.to(roomId).emit('video-pause', { currentTime, senderId: socket.id });
     });
 
     socket.on('video-seek', ({ roomId, currentTime }) => {
-      socket.to(roomId).emit('video-seek', { currentTime, senderId: socket.id });
+      io.to(roomId).emit('video-seek', { currentTime, senderId: socket.id });
     });
 
     socket.on('request-initial-sync', ({ roomId }) => {

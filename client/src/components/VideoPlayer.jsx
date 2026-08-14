@@ -23,8 +23,8 @@ function VideoPlayer({ videoUrl, roomId, socket, isHost }) {
     if (!socket || !roomId || youtubeId) return;
 
     // Listen for remote play
-    socket.on('video-play', ({ currentTime }) => {
-      if (!videoRef.current) return;
+    socket.on('video-play', ({ currentTime, senderId }) => {
+      if (!videoRef.current || senderId === socket.id) return;
       isRemoteUpdate.current = true;
 
       if (Math.abs(videoRef.current.currentTime - currentTime) > 0.5) {
@@ -42,8 +42,8 @@ function VideoPlayer({ videoUrl, roomId, socket, isHost }) {
     });
 
     // Listen for remote pause
-    socket.on('video-pause', ({ currentTime }) => {
-      if (!videoRef.current) return;
+    socket.on('video-pause', ({ currentTime, senderId }) => {
+      if (!videoRef.current || senderId === socket.id) return;
       isRemoteUpdate.current = true;
       if (Math.abs(videoRef.current.currentTime - currentTime) > 0.5) {
         videoRef.current.currentTime = currentTime;
@@ -53,15 +53,15 @@ function VideoPlayer({ videoUrl, roomId, socket, isHost }) {
       showSyncBadge('⏸️ Synced Pause');
     });
 
-    // Listen for remote seek
-    socket.on('video-seek', ({ currentTime }) => {
-      if (!videoRef.current) return;
+    // Listen for remote seek / 10s skip
+    socket.on('video-seek', ({ currentTime, senderId }) => {
+      if (!videoRef.current || senderId === socket.id) return;
       isRemoteUpdate.current = true;
       videoRef.current.currentTime = currentTime;
       showSyncBadge(`⏩ Synced to ${formatTime(currentTime)}`);
     });
 
-    // Handle initial sync request (Host responds to new joiners)
+    // Handle initial sync request
     socket.on('request-initial-sync-from-host', ({ requesterId }) => {
       if (isHost && videoRef.current) {
         socket.emit('provide-initial-sync', {
@@ -116,6 +116,17 @@ function VideoPlayer({ videoUrl, roomId, socket, isHost }) {
     }
   };
 
+  const handleSkipTime = (seconds) => {
+    if (!videoRef.current) return;
+    const newTime = Math.max(0, videoRef.current.currentTime + seconds);
+    videoRef.current.currentTime = newTime;
+    showSyncBadge(seconds > 0 ? `⏩ +${seconds}s` : `⏪ ${seconds}s`);
+
+    if (socket && roomId) {
+      socket.emit('video-seek', { roomId, currentTime: newTime });
+    }
+  };
+
   const handleStartPlay = () => {
     if (videoRef.current) {
       videoRef.current.play().then(() => {
@@ -156,6 +167,15 @@ function VideoPlayer({ videoUrl, roomId, socket, isHost }) {
     }
     if (socket && videoRef.current) {
       socket.emit('video-pause', { roomId, currentTime: videoRef.current.currentTime });
+    }
+  };
+
+  const handleSeeking = () => {
+    if (isRemoteUpdate.current) {
+      return;
+    }
+    if (socket && videoRef.current) {
+      socket.emit('video-seek', { roomId, currentTime: videoRef.current.currentTime });
     }
   };
 
@@ -214,24 +234,43 @@ function VideoPlayer({ videoUrl, roomId, socket, isHost }) {
         </div>
       )}
 
-      {/* Manual Sync Button */}
-      <button
-        onClick={handleManualReSync}
-        className="btn btn-secondary"
-        style={{
-          position: 'absolute',
-          top: '12px',
-          right: '12px',
-          zIndex: 20,
-          padding: '0.3rem 0.65rem',
-          fontSize: '0.75rem',
-          background: 'rgba(0, 0, 0, 0.6)',
-          backdropFilter: 'blur(4px)'
-        }}
-        title="Click if video gets out of sync"
-      >
-        🔄 Re-Sync
-      </button>
+      {/* Control Overlay: Skip -10s, Re-Sync, Skip +10s */}
+      <div style={{
+        position: 'absolute',
+        top: '12px',
+        right: '12px',
+        zIndex: 20,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.4rem'
+      }}>
+        <button
+          onClick={() => handleSkipTime(-10)}
+          className="btn btn-secondary"
+          style={{ padding: '0.3rem 0.55rem', fontSize: '0.75rem', background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
+          title="Skip 10 seconds back (Syncs for everyone)"
+        >
+          ⏪ -10s
+        </button>
+
+        <button
+          onClick={() => handleSkipTime(10)}
+          className="btn btn-secondary"
+          style={{ padding: '0.3rem 0.55rem', fontSize: '0.75rem', background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
+          title="Skip 10 seconds forward (Syncs for everyone)"
+        >
+          ⏩ +10s
+        </button>
+
+        <button
+          onClick={handleManualReSync}
+          className="btn btn-secondary"
+          style={{ padding: '0.3rem 0.55rem', fontSize: '0.75rem', background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
+          title="Click to re-sync video timestamp with host"
+        >
+          🔄 Re-Sync
+        </button>
+      </div>
 
       {/* Browser Autoplay Blocked Overlay */}
       {autoplayBlocked && (
@@ -276,6 +315,7 @@ function VideoPlayer({ videoUrl, roomId, socket, isHost }) {
           playsInline
           onPlay={handlePlay}
           onPause={handlePause}
+          onSeeking={handleSeeking}
           onSeeked={handleSeeked}
           onError={handleMediaError}
           style={{
