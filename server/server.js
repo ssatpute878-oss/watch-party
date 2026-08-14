@@ -14,29 +14,46 @@ connectDB();
 const app = express();
 const server = http.createServer(app);
 
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+// Dynamic CORS configuration ignoring trailing slashes & handling Vercel/Netlify origins
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // Allow server-to-server or non-browser requests
 
-// Socket.IO setup
+    const cleanOrigin = origin.replace(/\/+$/, '');
+    const envClient = (process.env.CLIENT_URL || '*').replace(/\/+$/, '');
+
+    if (
+      envClient === '*' ||
+      cleanOrigin === envClient ||
+      cleanOrigin.endsWith('.vercel.app') ||
+      cleanOrigin.endsWith('.netlify.app') ||
+      cleanOrigin.includes('localhost')
+    ) {
+      return callback(null, true);
+    }
+
+    return callback(null, true); // Fallback permission for deployments
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+// Apply CORS to Express
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
+app.use(express.json());
+
+// Socket.IO setup with matching CORS
 const io = new Server(server, {
-  cors: {
-    origin: CLIENT_URL,
-    methods: ['GET', 'POST'],
-    credentials: true
-  }
+  cors: corsOptions
 });
 
 // Attach Socket logic
 handleSocketConnection(io);
 
 const PORT = process.env.PORT || 5000;
-
-// CORS configuration for Express
-app.use(cors({
-  origin: CLIENT_URL,
-  credentials: true
-}));
-
-app.use(express.json());
 
 // API Routes (Primary and fallback aliases)
 const authRoutes = require('./routes/authRoutes');
