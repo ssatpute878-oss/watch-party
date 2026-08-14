@@ -3,9 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import API from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../hooks/useSocket';
+import { useWebRTC } from '../hooks/useWebRTC';
 import PartyHeader from '../components/PartyHeader';
 import VideoPlayer from '../components/VideoPlayer';
 import Chat from '../components/Chat';
+import VideoCall from '../components/VideoCall';
+import CallControls from '../components/CallControls';
+import ParticipantList from '../components/ParticipantList';
 
 function WatchParty() {
   const { roomId } = useParams();
@@ -20,6 +24,19 @@ function WatchParty() {
   const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'participants'
 
   const isHost = party && user && (party.host?._id === user._id || party.host === user._id);
+
+  // WebRTC Hook
+  const {
+    localStream,
+    remoteStreams,
+    isMicOn,
+    isCameraOn,
+    isScreenSharing,
+    mediaError,
+    toggleAudio,
+    toggleVideo,
+    toggleScreenShare
+  } = useWebRTC(socket, party?.roomId, user);
 
   // Fetch party metadata
   useEffect(() => {
@@ -44,7 +61,7 @@ function WatchParty() {
     }
   }, [roomId]);
 
-  // Handle Socket.IO connection & room joining
+  // Socket room connection
   useEffect(() => {
     if (!socket || !isConnected || !party || !user) return;
 
@@ -117,7 +134,7 @@ function WatchParty() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-main)' }}>
-      {/* Header */}
+      {/* Header Bar */}
       <PartyHeader
         party={party}
         isHost={isHost}
@@ -126,7 +143,22 @@ function WatchParty() {
         onEndParty={handleEndParty}
       />
 
-      {/* Main Room Layout */}
+      {/* Permission Warning Banner */}
+      {mediaError && (
+        <div style={{
+          background: 'rgba(245, 158, 11, 0.15)',
+          borderBottom: '1px solid rgba(245, 158, 11, 0.3)',
+          color: 'var(--warning)',
+          padding: '0.4rem 1rem',
+          textAlign: 'center',
+          fontSize: '0.8rem',
+          fontWeight: 500
+        }}>
+          ⚠️ {mediaError}
+        </div>
+      )}
+
+      {/* Main Room Layout Grid */}
       <div style={{
         flex: 1,
         display: 'grid',
@@ -134,7 +166,7 @@ function WatchParty() {
         gap: '1rem',
         padding: '1rem',
         overflow: 'hidden',
-        height: 'calc(100vh - 65px)'
+        height: mediaError ? 'calc(100vh - 95px)' : 'calc(100vh - 65px)'
       }}>
         {/* Left Side: Theater & Call Stage */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', overflow: 'hidden' }}>
@@ -148,15 +180,34 @@ function WatchParty() {
             />
           </div>
 
-          {/* WebRTC Video Call Grid Shell */}
-          <div className="glass-card" style={{ height: '140px', padding: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', overflowX: 'auto' }}>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>📹 Video Grid Shell</div>
+          {/* WebRTC Video Call Grid */}
+          <div className="glass-card" style={{ height: '145px', padding: '0.4rem', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <VideoCall
+              localStream={localStream}
+              remoteStreams={remoteStreams}
+              currentUser={{ ...user, isHost }}
+              isMicOn={isMicOn}
+              isCameraOn={isCameraOn}
+              isScreenSharing={isScreenSharing}
+            />
           </div>
+
+          {/* Call Controls Toolbar */}
+          <CallControls
+            isMicOn={isMicOn}
+            isCameraOn={isCameraOn}
+            isScreenSharing={isScreenSharing}
+            onToggleMic={toggleAudio}
+            onToggleCamera={toggleVideo}
+            onToggleScreenShare={toggleScreenShare}
+            onLeaveParty={handleLeaveParty}
+            isHost={isHost}
+          />
         </div>
 
-        {/* Right Side: Chat & Participants Panel */}
+        {/* Right Side: Chat & Participants Drawer */}
         <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
-          {/* Tab Navigation */}
+          {/* Tab Headers */}
           <div style={{ display: 'flex', borderBottom: '1px solid var(--bg-glass-border)' }}>
             <button
               onClick={() => setActiveTab('chat')}
@@ -190,19 +241,12 @@ function WatchParty() {
             </button>
           </div>
 
-          {/* Panel Content */}
+          {/* Tab Content Body */}
           <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
             {activeTab === 'chat' ? (
               <Chat roomId={party.roomId} socket={socket} user={user} />
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {participants.map((p) => (
-                  <div key={p.socketId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.04)' }}>
-                    <span>{p.name}</span>
-                    {p.isHost && <span className="badge badge-host">HOST</span>}
-                  </div>
-                ))}
-              </div>
+              <ParticipantList participants={participants} currentUserId={socket?.id || user?._id} />
             )}
           </div>
         </div>
