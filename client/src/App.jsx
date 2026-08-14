@@ -8,9 +8,7 @@ import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
 import CreateParty from './pages/CreateParty';
 import JoinParty from './pages/JoinParty';
-
-// Temporary placeholder components for routes created in upcoming milestones
-const WatchPartyPlaceholder = () => <div style={{ padding: '2rem' }}>Watch Party Room Placeholder</div>;
+import WatchParty from './pages/WatchParty';
 
 function App() {
   return (
@@ -27,7 +25,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/create-party" element={<CreateParty />} />
             <Route path="/join-party" element={<JoinParty />} />
-            <Route path="/party/:roomId" element={<WatchPartyPlaceholder />} />
+            <Route path="/party/:roomId" element={<WatchParty />} />
           </Route>
 
           {/* Catch-all redirect */}
