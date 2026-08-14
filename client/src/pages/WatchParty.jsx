@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../hooks/useSocket';
 import PartyHeader from '../components/PartyHeader';
 import VideoPlayer from '../components/VideoPlayer';
+import Chat from '../components/Chat';
 
 function WatchParty() {
   const { roomId } = useParams();
@@ -190,9 +191,9 @@ function WatchParty() {
           </div>
 
           {/* Panel Content */}
-          <div style={{ flex: 1, padding: '1rem', overflowY: 'auto' }}>
+          <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
             {activeTab === 'chat' ? (
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Chat message feed shell</div>
+              <Chat roomId={party.roomId} socket={socket} user={user} />
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {participants.map((p) => (
