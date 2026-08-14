@@ -1,29 +1,44 @@
 import React, { useEffect, useRef, useState } from 'react';
 
+// Helper to extract YouTube Video ID
+const getYouTubeVideoId = (url) => {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+};
+
 function VideoPlayer({ videoUrl, roomId, socket, isHost }) {
   const videoRef = useRef(null);
   const isRemoteUpdate = useRef(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [syncNotice, setSyncNotice] = useState('');
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+  const [videoError, setVideoError] = useState('');
 
-  // Handle Socket Events for Sync
+  const youtubeId = getYouTubeVideoId(videoUrl);
+
+  // Handle Socket Events for Sync (For standard video player)
   useEffect(() => {
-    if (!socket || !roomId) return;
+    if (!socket || !roomId || youtubeId) return;
 
     // Listen for remote play
     socket.on('video-play', ({ currentTime }) => {
       if (!videoRef.current) return;
       isRemoteUpdate.current = true;
 
-      // Sync time if drift > 0.5s
       if (Math.abs(videoRef.current.currentTime - currentTime) > 0.5) {
         videoRef.current.currentTime = currentTime;
       }
 
       videoRef.current.play().then(() => {
         setIsPlaying(true);
+        setAutoplayBlocked(false);
         showSyncBadge('▶️ Synced Play');
-      }).catch(err => console.warn('Auto-play blocked by browser:', err.message));
+      }).catch(err => {
+        console.warn('Autoplay blocked by browser policy:', err.message);
+        setAutoplayBlocked(true);
+      });
     });
 
     // Listen for remote pause
@@ -58,14 +73,18 @@ function VideoPlayer({ videoUrl, roomId, socket, isHost }) {
       }
     });
 
-    // Listen for initial sync state (For newly joined participants)
+    // Listen for initial sync state
     socket.on('video-sync', ({ currentTime, isPlaying }) => {
       if (!videoRef.current) return;
       isRemoteUpdate.current = true;
       videoRef.current.currentTime = currentTime;
       if (isPlaying) {
-        videoRef.current.play().catch(err => console.warn(err.message));
-        setIsPlaying(true);
+        videoRef.current.play().then(() => {
+          setIsPlaying(true);
+          setAutoplayBlocked(false);
+        }).catch(() => {
+          setAutoplayBlocked(true);
+        });
       } else {
         videoRef.current.pause();
         setIsPlaying(false);
@@ -83,7 +102,7 @@ function VideoPlayer({ videoUrl, roomId, socket, isHost }) {
       socket.off('request-initial-sync-from-host');
       socket.off('video-sync');
     };
-  }, [socket, roomId, isHost, videoUrl]);
+  }, [socket, roomId, isHost, videoUrl, youtubeId]);
 
   const showSyncBadge = (msg) => {
     setSyncNotice(msg);
@@ -97,6 +116,18 @@ function VideoPlayer({ videoUrl, roomId, socket, isHost }) {
     }
   };
 
+  const handleStartPlay = () => {
+    if (videoRef.current) {
+      videoRef.current.play().then(() => {
+        setIsPlaying(true);
+        setAutoplayBlocked(false);
+        if (socket && roomId) {
+          socket.emit('video-play', { roomId, currentTime: videoRef.current.currentTime });
+        }
+      }).catch(err => console.error('Play click error:', err));
+    }
+  };
+
   const formatTime = (seconds) => {
     if (isNaN(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
@@ -107,6 +138,7 @@ function VideoPlayer({ videoUrl, roomId, socket, isHost }) {
   // Local Video Event Handlers
   const handlePlay = () => {
     setIsPlaying(true);
+    setAutoplayBlocked(false);
     if (isRemoteUpdate.current) {
       isRemoteUpdate.current = false;
       return;
@@ -137,6 +169,27 @@ function VideoPlayer({ videoUrl, roomId, socket, isHost }) {
     }
   };
 
+  const handleMediaError = (e) => {
+    console.error('Video Load Error:', e);
+    setVideoError('Unable to load video stream. Please verify the video URL is a direct MP4 link or YouTube URL.');
+  };
+
+  // 1. YouTube Video Embed Player
+  if (youtubeId) {
+    return (
+      <div style={{ position: 'relative', width: '100%', height: '100%', background: '#000000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <iframe
+          title="YouTube Watch Party Video"
+          src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&enablejsapi=1`}
+          style={{ width: '100%', height: '100%', border: 'none' }}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
+
+  // 2. Standard HTML5 Video Player
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000000' }}>
       {/* Synchronization Toast Badge */}
@@ -180,24 +233,61 @@ function VideoPlayer({ videoUrl, roomId, socket, isHost }) {
         🔄 Re-Sync
       </button>
 
-      {/* HTML5 Video Element */}
-      <video
-        ref={videoRef}
-        src={videoUrl}
-        controls
-        playsInline
-        onPlay={handlePlay}
-        onPause={handlePause}
-        onSeeked={handleSeeked}
-        style={{
-          maxWidth: '100%',
-          maxHeight: '100%',
-          width: '100%',
-          height: '100%',
-          objectFit: 'contain',
-          outline: 'none'
-        }}
-      />
+      {/* Browser Autoplay Blocked Overlay */}
+      {autoplayBlocked && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 30,
+          background: 'rgba(11, 15, 25, 0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '1rem',
+          padding: '1.5rem',
+          textAlign: 'center'
+        }}>
+          <h3 style={{ fontSize: '1.3rem' }}>▶️ Click to Join Video Playback</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', maxWidth: '380px' }}>
+            Browser security policy requires user interaction before playing audio/video.
+          </p>
+          <button onClick={handleStartPlay} className="btn btn-primary" style={{ padding: '0.75rem 1.5rem', fontSize: '1rem' }}>
+            Start Watching
+          </button>
+        </div>
+      )}
+
+      {/* Video Load Error Banner */}
+      {videoError ? (
+        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--danger)' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>⚠️</div>
+          <p style={{ fontSize: '0.9rem', maxWidth: '400px', margin: '0 auto 1rem auto' }}>{videoError}</p>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+            URL: <code style={{ wordBreak: 'break-all' }}>{videoUrl}</code>
+          </p>
+        </div>
+      ) : (
+        <video
+          ref={videoRef}
+          src={videoUrl}
+          controls
+          playsInline
+          onPlay={handlePlay}
+          onPause={handlePause}
+          onSeeked={handleSeeked}
+          onError={handleMediaError}
+          style={{
+            maxWidth: '100%',
+            maxHeight: '100%',
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+            outline: 'none'
+          }}
+        />
+      )}
     </div>
   );
 }
