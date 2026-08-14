@@ -38,9 +38,15 @@ app.use(cors({
 
 app.use(express.json());
 
-// API Routes
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/parties', require('./routes/partyRoutes'));
+// API Routes (Primary and fallback aliases)
+const authRoutes = require('./routes/authRoutes');
+const partyRoutes = require('./routes/partyRoutes');
+
+app.use('/api/auth', authRoutes);
+app.use('/auth', authRoutes);
+
+app.use('/api/parties', partyRoutes);
+app.use('/parties', partyRoutes);
 
 // Health Check API
 app.get('/api/health', (req, res) => {
