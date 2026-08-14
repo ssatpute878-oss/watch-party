@@ -1,13 +1,40 @@
 import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import Login from './pages/Login';
+import Register from './pages/Register';
+
+// Temporary placeholder components for routes created in upcoming milestones
+const HomePlaceholder = () => <div style={{ padding: '2rem' }}>Home Page Placeholder</div>;
+const DashboardPlaceholder = () => <div style={{ padding: '2rem' }}>Dashboard Page Placeholder</div>;
+const CreatePartyPlaceholder = () => <div style={{ padding: '2rem' }}>Create Party Placeholder</div>;
+const JoinPartyPlaceholder = () => <div style={{ padding: '2rem' }}>Join Party Placeholder</div>;
+const WatchPartyPlaceholder = () => <div style={{ padding: '2rem' }}>Watch Party Room Placeholder</div>;
 
 function App() {
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1rem' }}>
-      <h1 style={{ fontSize: '2.5rem', background: 'linear-gradient(135deg, #6366F1, #EC4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-        WATCH PARTY
-      </h1>
-      <p style={{ color: '#9CA3AF' }}>Watch Together. Stay Together.</p>
-    </div>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<HomePlaceholder />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+
+          {/* Protected Routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/dashboard" element={<DashboardPlaceholder />} />
+            <Route path="/create-party" element={<CreatePartyPlaceholder />} />
+            <Route path="/join-party" element={<JoinPartyPlaceholder />} />
+            <Route path="/party/:roomId" element={<WatchPartyPlaceholder />} />
+          </Route>
+
+          {/* Catch-all redirect */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 
