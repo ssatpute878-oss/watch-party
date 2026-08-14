@@ -1,7 +1,10 @@
+const http = require('http');
 const express = require('express');
+const { Server } = require('socket.io');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
+const handleSocketConnection = require('./socket/socketHandler');
 
 dotenv.config();
 
@@ -9,11 +12,27 @@ dotenv.config();
 connectDB();
 
 const app = express();
+const server = http.createServer(app);
+
+const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+
+// Socket.IO setup
+const io = new Server(server, {
+  cors: {
+    origin: CLIENT_URL,
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
+
+// Attach Socket logic
+handleSocketConnection(io);
+
 const PORT = process.env.PORT || 5000;
 
-// CORS configuration
+// CORS configuration for Express
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: CLIENT_URL,
   credentials: true
 }));
 
@@ -27,7 +46,7 @@ app.use('/api/parties', require('./routes/partyRoutes'));
 app.get('/api/health', (req, res) => {
   res.json({
     success: true,
-    message: 'Watch Party API Server is active and connected',
+    message: 'Watch Party API & Socket Server is active and connected',
     timestamp: new Date().toISOString()
   });
 });
@@ -49,6 +68,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+server.listen(PORT, () => {
+  console.log(`Server & Socket.IO running on port ${PORT}`);
 });
