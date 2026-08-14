@@ -269,3 +269,20 @@ a:hover {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Responsive Media Queries */
+@media (max-width: 868px) {
+  body {
+    font-size: 14px;
+  }
+
+  .glass-card {
+    padding: 1rem;
+  }
+
+  .btn {
+    padding: 0.6rem 1rem;
+    font-size: 0.875rem;
+  }
+}
+
