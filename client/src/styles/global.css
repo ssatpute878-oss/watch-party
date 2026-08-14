@@ -2,7 +2,7 @@
   --bg-main: #0B0F19;
   --bg-card: #131B2E;
   --bg-card-hover: #1A243D;
-  --bg-glass: rgba(19, 27, 46, 0.75);
+  --bg-glass: rgba(19, 27, 46, 0.85);
   --bg-glass-border: rgba(255, 255, 255, 0.08);
 
   --primary: #6366F1;
@@ -107,6 +107,7 @@ a:hover {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   outline: none;
   white-space: nowrap;
+  touch-action: manipulation;
 }
 
 .btn:disabled {
@@ -147,8 +148,9 @@ a:hover {
 }
 
 .btn-icon {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
   padding: 0;
   border-radius: 50%;
 }
@@ -156,12 +158,13 @@ a:hover {
 .btn-icon.active {
   background: var(--primary);
   color: #ffffff;
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.5);
 }
 
 .btn-icon.muted {
   background: var(--danger-bg);
   color: var(--danger);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  border: 1px solid rgba(239, 68, 68, 0.4);
 }
 
 /* Inputs & Form Controls */
@@ -270,19 +273,60 @@ a:hover {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Responsive Media Queries */
-@media (max-width: 868px) {
+/* Mobile & Tablet Responsive Media Queries */
+@media (max-width: 900px) {
   body {
     font-size: 14px;
   }
 
   .glass-card {
     padding: 1rem;
+    border-radius: var(--radius-md);
   }
 
   .btn {
-    padding: 0.6rem 1rem;
+    padding: 0.65rem 1rem;
     font-size: 0.875rem;
+  }
+
+  .btn-icon {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+  }
+
+  /* Watch Party Room Mobile Stack */
+  .party-room-container {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+    min-height: auto !important;
+    padding: 0.75rem !important;
+    gap: 0.75rem !important;
+  }
+
+  .party-theater-box {
+    height: 240px !important;
+    min-height: 240px !important;
+  }
+
+  .party-side-drawer {
+    height: 420px !important;
+  }
+
+  .party-header-bar {
+    padding: 0.75rem 1rem !important;
   }
 }
 
+@media (max-width: 480px) {
+  .party-theater-box {
+    height: 210px !important;
+    min-height: 210px !important;
+  }
+
+  .btn-icon {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+  }
+}

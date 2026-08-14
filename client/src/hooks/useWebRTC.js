@@ -10,7 +10,7 @@ const ICE_SERVERS = {
 
 export const useWebRTC = (socket, roomId, user) => {
   const [localStream, setLocalStream] = useState(null);
-  const [remoteStreams, setRemoteStreams] = useState(new Map()); // Map<socketId, { stream, userInfo }>
+  const [remoteStreams, setRemoteStreams] = useState(new Map()); // Map<socketId, { stream, userInfo, audioEnabled, videoEnabled, screenSharing }>
   const [isMicOn, setIsMicOn] = useState(true);
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
@@ -34,6 +34,8 @@ export const useWebRTC = (socket, roomId, user) => {
         if (isMounted) {
           localStreamRef.current = stream;
           setLocalStream(stream);
+          setIsMicOn(true);
+          setIsCameraOn(true);
         }
       } catch (err) {
         console.warn('Camera/Microphone permission denied or unavailable:', err.message);
@@ -45,10 +47,13 @@ export const useWebRTC = (socket, roomId, user) => {
           if (isMounted) {
             localStreamRef.current = audioStream;
             setLocalStream(audioStream);
+            setIsMicOn(true);
             setIsCameraOn(false);
           }
         } catch (audioErr) {
           console.warn('Audio-only fallback also failed:', audioErr.message);
+          setIsMicOn(false);
+          setIsCameraOn(false);
         }
       }
     };
@@ -99,7 +104,9 @@ export const useWebRTC = (socket, roomId, user) => {
         const existing = updated.get(targetSocketId) || {};
         updated.set(targetSocketId, {
           ...existing,
-          stream: remoteStream
+          stream: remoteStream,
+          audioEnabled: existing.audioEnabled ?? true,
+          videoEnabled: existing.videoEnabled ?? true
         });
         return updated;
       });
@@ -129,7 +136,7 @@ export const useWebRTC = (socket, roomId, user) => {
     });
   }, []);
 
-  // Handle Socket Signaling Events
+  // Handle Socket Signaling & Toggle Events
   useEffect(() => {
     if (!socket) return;
 
@@ -201,6 +208,42 @@ export const useWebRTC = (socket, roomId, user) => {
       }
     };
 
+    // Handle remote participant audio toggle
+    const handleAudioToggle = ({ socketId, enabled }) => {
+      setRemoteStreams((prev) => {
+        const updated = new Map(prev);
+        const existing = updated.get(socketId);
+        if (existing) {
+          updated.set(socketId, { ...existing, audioEnabled: enabled });
+        }
+        return updated;
+      });
+    };
+
+    // Handle remote participant video toggle
+    const handleVideoToggle = ({ socketId, enabled }) => {
+      setRemoteStreams((prev) => {
+        const updated = new Map(prev);
+        const existing = updated.get(socketId);
+        if (existing) {
+          updated.set(socketId, { ...existing, videoEnabled: enabled });
+        }
+        return updated;
+      });
+    };
+
+    // Handle remote participant screen toggle
+    const handleScreenToggle = ({ socketId, isSharing }) => {
+      setRemoteStreams((prev) => {
+        const updated = new Map(prev);
+        const existing = updated.get(socketId);
+        if (existing) {
+          updated.set(socketId, { ...existing, screenSharing: isSharing });
+        }
+        return updated;
+      });
+    };
+
     // Handle user left -> Close peer connection
     const handleUserLeft = ({ socketId }) => {
       removePeerConnection(socketId);
@@ -211,6 +254,9 @@ export const useWebRTC = (socket, roomId, user) => {
     socket.on('webrtc-ice-candidate', handleIceCandidate);
     socket.on('user-joined', handleUserJoined);
     socket.on('user-left', handleUserLeft);
+    socket.on('participant-audio-toggle', handleAudioToggle);
+    socket.on('participant-video-toggle', handleVideoToggle);
+    socket.on('participant-screen-toggle', handleScreenToggle);
 
     return () => {
       socket.off('webrtc-offer', handleOffer);
@@ -218,6 +264,9 @@ export const useWebRTC = (socket, roomId, user) => {
       socket.off('webrtc-ice-candidate', handleIceCandidate);
       socket.off('user-joined', handleUserJoined);
       socket.off('user-left', handleUserLeft);
+      socket.off('participant-audio-toggle', handleAudioToggle);
+      socket.off('participant-video-toggle', handleVideoToggle);
+      socket.off('participant-screen-toggle', handleScreenToggle);
     };
   }, [socket, createPeerConnection, removePeerConnection]);
 

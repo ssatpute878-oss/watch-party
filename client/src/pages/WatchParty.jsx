@@ -159,19 +159,22 @@ function WatchParty() {
       )}
 
       {/* Main Room Layout Grid */}
-      <div style={{
-        flex: 1,
-        display: 'grid',
-        gridTemplateColumns: '1fr 340px',
-        gap: '1rem',
-        padding: '1rem',
-        overflow: 'hidden',
-        height: mediaError ? 'calc(100vh - 95px)' : 'calc(100vh - 65px)'
-      }}>
+      <div
+        className="party-room-container"
+        style={{
+          flex: 1,
+          display: 'grid',
+          gridTemplateColumns: '1fr 340px',
+          gap: '1rem',
+          padding: '1rem',
+          overflowY: 'auto',
+          height: mediaError ? 'calc(100vh - 95px)' : 'calc(100vh - 65px)'
+        }}
+      >
         {/* Left Side: Theater & Call Stage */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', overflow: 'hidden' }}>
           {/* Main Video Theater */}
-          <div className="glass-card" style={{ flex: 1, padding: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
+          <div className="glass-card party-theater-box" style={{ flex: 1, padding: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000', minHeight: '300px' }}>
             <VideoPlayer
               videoUrl={party.videoUrl}
               roomId={party.roomId}
@@ -181,7 +184,7 @@ function WatchParty() {
           </div>
 
           {/* WebRTC Video Call Grid */}
-          <div className="glass-card" style={{ height: '145px', padding: '0.4rem', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div className="glass-card" style={{ height: '145px', minHeight: '145px', padding: '0.4rem', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <VideoCall
               localStream={localStream}
               remoteStreams={remoteStreams}
@@ -206,7 +209,7 @@ function WatchParty() {
         </div>
 
         {/* Right Side: Chat & Participants Drawer */}
-        <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
+        <div className="glass-card party-side-drawer" style={{ display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
           {/* Tab Headers */}
           <div style={{ display: 'flex', borderBottom: '1px solid var(--bg-glass-border)' }}>
             <button

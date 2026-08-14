@@ -11,7 +11,7 @@ function VideoPlayer({ videoUrl, roomId, socket, isHost }) {
     if (!socket || !roomId) return;
 
     // Listen for remote play
-    socket.on('video-play', ({ currentTime, senderId }) => {
+    socket.on('video-play', ({ currentTime }) => {
       if (!videoRef.current) return;
       isRemoteUpdate.current = true;
 
@@ -23,7 +23,7 @@ function VideoPlayer({ videoUrl, roomId, socket, isHost }) {
       videoRef.current.play().then(() => {
         setIsPlaying(true);
         showSyncBadge('▶️ Synced Play');
-      }).catch(err => console.error('Auto-play error:', err));
+      }).catch(err => console.warn('Auto-play blocked by browser:', err.message));
     });
 
     // Listen for remote pause
@@ -64,7 +64,7 @@ function VideoPlayer({ videoUrl, roomId, socket, isHost }) {
       isRemoteUpdate.current = true;
       videoRef.current.currentTime = currentTime;
       if (isPlaying) {
-        videoRef.current.play().catch(err => console.error(err));
+        videoRef.current.play().catch(err => console.warn(err.message));
         setIsPlaying(true);
       } else {
         videoRef.current.pause();
@@ -90,7 +90,15 @@ function VideoPlayer({ videoUrl, roomId, socket, isHost }) {
     setTimeout(() => setSyncNotice(''), 2500);
   };
 
+  const handleManualReSync = () => {
+    if (socket && roomId) {
+      socket.emit('request-initial-sync', { roomId });
+      showSyncBadge('🔄 Requesting Sync...');
+    }
+  };
+
   const formatTime = (seconds) => {
+    if (isNaN(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
@@ -135,16 +143,16 @@ function VideoPlayer({ videoUrl, roomId, socket, isHost }) {
       {syncNotice && (
         <div style={{
           position: 'absolute',
-          top: '16px',
-          left: '16px',
+          top: '12px',
+          left: '12px',
           zIndex: 20,
           background: 'rgba(19, 27, 46, 0.85)',
           backdropFilter: 'blur(8px)',
           border: '1px solid var(--primary)',
           color: '#ffffff',
-          padding: '0.4rem 0.9rem',
+          padding: '0.35rem 0.8rem',
           borderRadius: '20px',
-          fontSize: '0.8rem',
+          fontSize: '0.75rem',
           fontWeight: 600,
           boxShadow: 'var(--shadow-md)',
           animation: 'fadeIn 0.2s ease'
@@ -152,6 +160,25 @@ function VideoPlayer({ videoUrl, roomId, socket, isHost }) {
           {syncNotice}
         </div>
       )}
+
+      {/* Manual Sync Button */}
+      <button
+        onClick={handleManualReSync}
+        className="btn btn-secondary"
+        style={{
+          position: 'absolute',
+          top: '12px',
+          right: '12px',
+          zIndex: 20,
+          padding: '0.3rem 0.65rem',
+          fontSize: '0.75rem',
+          background: 'rgba(0, 0, 0, 0.6)',
+          backdropFilter: 'blur(4px)'
+        }}
+        title="Click if video gets out of sync"
+      >
+        🔄 Re-Sync
+      </button>
 
       {/* HTML5 Video Element */}
       <video
