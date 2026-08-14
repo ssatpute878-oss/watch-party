@@ -4,6 +4,7 @@ import API from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../hooks/useSocket';
 import PartyHeader from '../components/PartyHeader';
+import VideoPlayer from '../components/VideoPlayer';
 
 function WatchParty() {
   const { roomId } = useParams();
@@ -136,12 +137,14 @@ function WatchParty() {
       }}>
         {/* Left Side: Theater & Call Stage */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', overflow: 'hidden' }}>
-          {/* Main Video Theater Shell */}
+          {/* Main Video Theater */}
           <div className="glass-card" style={{ flex: 1, padding: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
-            <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
-              <h3>🎬 Video Player Zone</h3>
-              <p style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>URL: {party.videoUrl}</p>
-            </div>
+            <VideoPlayer
+              videoUrl={party.videoUrl}
+              roomId={party.roomId}
+              socket={socket}
+              isHost={isHost}
+            />
           </div>
 
           {/* WebRTC Video Call Grid Shell */}
